@@ -17,13 +17,7 @@ public class Main {
 	//Logger Initialization
 	static {
 		try {
-			for(Handler h : LOGGER.getHandlers()) {
-				if(h instanceof FileHandler) {
-					LOGFILE = (FileHandler) h;
-					break;
-				}
-			}
-			
+			HandlerTest();
 			if(LOGFILE == null) {
 				LOGFILE = new FileHandler("FileSearcher.log");
 				format = new SimpleFormatter();
@@ -31,7 +25,7 @@ public class Main {
 				LOGFILE.setFormatter(format);
 				LOGGER.addHandler(LOGFILE);
 			}
-		} catch (SecurityException | IOException e) {
+		}catch (SecurityException | IOException e) {
 			// TODO Auto-generated catch block
 			LOGGER.log(Level.SEVERE, "File not created",e);
 		}
@@ -43,5 +37,14 @@ public class Main {
 		LOGGER.info("Application Laucnhed\n");
 		
 	}
-
+	
+	private static final void HandlerTest() {
+		Handler[] handlers = LOGGER.getHandlers();
+		for(Handler h : handlers) {
+			if(h instanceof FileHandler) {
+				LOGFILE = (FileHandler) h;
+				break;
+			}
+		}	
+	}
 }

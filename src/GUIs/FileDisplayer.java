@@ -122,7 +122,7 @@ public class FileDisplayer extends JFrame {
 					,assignment.get(),pattern));
 		} catch (InterruptedException | ExecutionException e) {
 			// TODO Auto-generated catch block
-			e.printStackTrace();
+			LOGGER.log(Level.SEVERE, "Exception",e);
 		}
 		LOGGER.info(String.format("Time to find files: %d Milliseconds\n", end));
 	}
