@@ -19,8 +19,6 @@ public class FileEditor implements Clean, Callable<Integer> {
 	private String pathname;
 	private FindernameFilter stringpattern;
 	private HashSet<File> finalfiles;
-	private ExecutorService searcher = Executors.newCachedThreadPool(new DaemonFactory("Sub-Folder Factory"));
-	private Future<Boolean> taskmoniter;
 	
 	//Constructors
 	public FileEditor(HashSet<File> fileArray, String pattern, Path path) {
@@ -61,25 +59,18 @@ public class FileEditor implements Clean, Callable<Integer> {
 	@Override
 	public Integer call() throws Exception {
 		// TODO Auto-generated method stub
-		taskmoniter = searcher.submit(() -> Edit());
-		while(!taskmoniter.isDone() && !taskmoniter.isCancelled()) {}
-		
-		if(taskmoniter.get() == true) {
-			FolderSearch(filepath, pattern);
-		}else if(taskmoniter.get() == false) {
-			return null;
-		}
+		Edit();
+		FolderSearch(filepath,pattern);
 		
 		return finalfiles.size();
 	}
 	
 	
 	@Override
-	public Boolean Edit(){
+	public void Edit(){
 		File filepath = new File(path);
 		this.filespath = filepath.listFiles(stringpattern);
 		this.finalfiles = new HashSet<File>(Arrays.asList(filespath));
-		return (this.finalfiles != null) ? true : false;
 	}
 
 	@Override

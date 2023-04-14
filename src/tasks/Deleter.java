@@ -38,7 +38,7 @@ public class Deleter implements Clean, Runnable {
 	}
 	
 	@Override
-	public Boolean Edit(){
+	public void Edit(){
 		File[] files = path.listFiles(this.Deleterpattern);
 		finalfiles = new HashSet<File>(Arrays.asList(files));
 		Iterator<File> it = finalfiles.iterator();
@@ -46,8 +46,6 @@ public class Deleter implements Clean, Runnable {
 			deletedfiles.add(it.next());
 			it.next().delete();
 		}
-		
-		return null;
 	}
 	
 	@Override

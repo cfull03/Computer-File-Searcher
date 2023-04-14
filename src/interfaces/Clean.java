@@ -37,7 +37,7 @@ public interface Clean {
 	
 	
 	//Abstract Methods
-	public Boolean Edit();
+	public void Edit();
 	public void DisplayName();
 	public void DisplayPath();
 	public void DisplayFileSize();
