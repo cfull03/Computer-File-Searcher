@@ -26,7 +26,6 @@ public class FileDisplayer extends JFrame {
 	private LinkedList<Object[]> fileTable;
 	private JTable table;
 	private Future<Integer> assignment;
-	private Long time;
 
 	//Final Variables
 	private final WorkingThreadFactory NFactory = new NormalFactory("Search Factory");
@@ -50,12 +49,18 @@ public class FileDisplayer extends JFrame {
 		
 		switch(selection) {
 		case CF:
+			long CFtime;
+			long CFstart = 0;
+			
 			assignment = processor.submit(CFEdit);
 			while(!assignment.isDone()) {
-				time = (Time() != 0) ? Time() : 0;
+				CFstart = System.currentTimeMillis();
 			}
+			
+			long CFend = System.currentTimeMillis();
+			CFtime = CFend - CFstart;
 			LOGGER.info(String.format("Time: %d Milliseconds to execute %s Task\n"
-					, time, CFEdit.getPathname()));
+					, CFtime, CFEdit.getPathname()));
 			
 			HashSet<File> CFFiles = CFEdit.getFinalFiles();
 			for(File i : CFFiles) {
@@ -64,12 +69,18 @@ public class FileDisplayer extends JFrame {
 			break;
 			
 		case DESKTOP:
+			long Desktoptime;
+			long Desktopstart = 0;
+			
 			assignment = processor.submit(DesktopEdit);
 			while(!assignment.isDone()) {
-				time = (Time() != 0) ? Time() : 0;
+				Desktopstart = System.currentTimeMillis();
 			}
+			
+			long Desktopend = System.currentTimeMillis();
+			Desktoptime = Desktopend - Desktopstart;
 			LOGGER.info(String.format("Time: %d Milliseconds to execute %s Task\n"
-					, time, DesktopEdit.getPathname()));
+					, Desktoptime, DesktopEdit.getPathname()));
 			
 			HashSet<File> DEFiles = DesktopEdit.getFinalFiles();
 			for(File i : DEFiles) {
@@ -78,12 +89,17 @@ public class FileDisplayer extends JFrame {
 			break;
 			
 		case USERS:
+			long Usertime;
+			long Userstart = System.currentTimeMillis();
+			
 			assignment = processor.submit(UEdit);
-			while(!assignment.isDone()) {
-				time = (Time() != 0) ? Time() : 0;
-			}
+			while(!assignment.isDone()) {}
+			
+			long Userend = System.currentTimeMillis();
+			Usertime = Userend - Userstart;
+			
 			LOGGER.info(String.format("Time: %d Milliseconds to execute %s Task\n"
-					, time, UEdit.getPathname()));
+					, Usertime, UEdit.getPathname()));
 			
 			HashSet<File> UFiles = UEdit.getFinalFiles();
 			for(File i : UFiles) {
@@ -116,7 +132,8 @@ public class FileDisplayer extends JFrame {
 		
 		setVisible(true);
 		
-		long end = System.currentTimeMillis() - start;
+		long end = System.currentTimeMillis();
+		long time = end - start;
 		try {
 			LOGGER.info(String.format("Thread Pool found %d Files containing keyword [%s]\n"
 					,assignment.get(),pattern));
@@ -124,7 +141,7 @@ public class FileDisplayer extends JFrame {
 			// TODO Auto-generated catch block
 			LOGGER.log(Level.SEVERE, "Exception",e);
 		}
-		LOGGER.info(String.format("Time to find files: %d Milliseconds\n", end));
+		LOGGER.info(String.format("Time to find files: %d Milliseconds\n", time));
 	}
 	
 	private Object[][] toDoubleColumes(LinkedList<Object[]> data) {
@@ -173,12 +190,6 @@ public class FileDisplayer extends JFrame {
 				}
 			}
 		}
-	}
-	
-	private final long Time() {
-		long start = System.currentTimeMillis();
-		long end = System.currentTimeMillis() - start;
-		return end;
 	}
 	
 	private final void ShutdownAndAwait(ExecutorService TPool) {

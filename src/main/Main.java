@@ -33,6 +33,7 @@ public class Main {
 		
 	//Driver Method
 	public static void main(String[] args) {
+		
 		new MainGUI();
 		LOGGER.info("Application Laucnhed\n");
 		
