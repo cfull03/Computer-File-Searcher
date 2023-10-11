@@ -25,6 +25,7 @@ public class DaemonFactory implements WorkingThreadFactory {
 		String name = String.format("%s: Thread [%d]", FactoryName, count);
 		count++;
 		Thread t = new Thread(r, name);
+		t.setDaemon(true);
 		String HEXI = Integer.toHexString(t.hashCode());
 		info.add(String.format("INFO: TYPE[%s], NAME[%s], ID [%d], HASHCODE [%s], "
 				+ "PRIORITY [%d], TASK [%s]\n"
