@@ -4,119 +4,151 @@ import java.io.*;
 import java.util.*;
 import interfaces.*;
 
+/**
+ * The {@code Deleter} class provides functionality to delete files in a specified directory
+ * based on a filename pattern. Implements the {@link Clean} and {@link Runnable} interfaces.
+ */
 public class Deleter implements Clean, Runnable {
 
-	//Variables
-	private DeleternameFilter Deleterpattern;
-	private File path;
-	private String pathname;
-	private HashSet<File> finalfiles;
-	private ArrayList<File> deletedfiles;
-	
-	//Constructors
+	// Variables
+	private final DeleternameFilter deleterPattern;
+	private final File path;
+	private final String pathname;
+	private HashSet<File> finalFiles;
+	private final List<File> deletedFiles;
+
+	/**
+	 * Constructs a {@code Deleter} object with the specified directory and filename pattern.
+	 *
+	 * @param pathname The path to the directory to search for files.
+	 * @param pattern  The filename pattern to match files for deletion.
+	 */
 	public Deleter(String pathname, String pattern) {
-		// TODO Auto-generated constructor stub
 		this.pathname = pathname;
 		this.path = new File(pathname);
-		this.Deleterpattern = new DeleternameFilter(pattern);
-		this.deletedfiles = new ArrayList<File>();
+		this.deleterPattern = new DeleternameFilter(pattern);
+		this.deletedFiles = new ArrayList<>();
 	}
-	
-	//Methods
-	public String gePath() {
+
+	/**
+	 * Returns the path of the directory being processed.
+	 *
+	 * @return The directory path as a {@link String}.
+	 */
+	public String getPath() {
 		return this.pathname;
 	}
-	
-	public String getPattern(){
-		return this.Deleterpattern.toString();
+
+	/**
+	 * Returns the deletion pattern used to match filenames.
+	 *
+	 * @return The filename pattern as a {@link String}.
+	 */
+	public String getPattern() {
+		return this.deleterPattern.toString();
 	}
-	
+
+	/**
+	 * Executes the deletion process by invoking the {@code Edit} method.
+	 */
 	@Override
 	public void run() {
-		// TODO Auto-generated method stub
 		Edit();
 	}
-	
+
+	/**
+	 * Deletes files in the specified directory that match the filename pattern.
+	 * The deleted files are stored in a list for further inspection or reporting.
+	 */
 	@Override
-	public void Edit(){
-		File[] files = path.listFiles(this.Deleterpattern);
-		finalfiles = new HashSet<File>(Arrays.asList(files));
-		Iterator<File> it = finalfiles.iterator();
-		while(it.hasNext()) {
-			deletedfiles.add(it.next());
-			it.next().delete();
+	public void Edit() {
+		var files = Optional.ofNullable(path.listFiles(this.deleterPattern))
+				.orElse(new File[0]);
+		finalFiles = new HashSet<>(Arrays.asList(files));
+
+		for (var file : finalFiles) {
+			if (file.delete()) {
+				deletedFiles.add(file);
+			}
 		}
 	}
-	
+
+	/**
+	 * Displays the names of the deleted files in the console.
+	 */
 	@Override
 	public void DisplayName() {
 		int count = 0;
-		for(File i : deletedfiles) {
-			count++;
-			System.out.printf("[*]File: %d---Name: %s[*]\n",count,i.getName());
+		for (var file : deletedFiles) {
+			System.out.printf("[*] File: %d --- Name: %s [*]%n", ++count, file.getName());
 		}
 	}
-	
+
+	/**
+	 * Displays the names and paths of the deleted files in the console.
+	 */
 	@Override
 	public void DisplayPath() {
 		int count = 0;
-		for(File i : deletedfiles) {
-			count++;
-			System.out.printf("[*]File: %d --- Name: %s[*]\n[*]Path: %s[*]\n",count,i.getName(),i.getPath());
+		for (var file : deletedFiles) {
+			System.out.printf("[*] File: %d --- Name: %s [*]%n[*] Path: %s [*]%n",
+					++count, file.getName(), file.getPath());
 		}
 	}
-	
+
+	/**
+	 * Displays the names and sizes of the deleted files in the console.
+	 */
 	@Override
 	public void DisplayFileSize() {
 		int count = 0;
-		for(File i : deletedfiles) {
-			count++;
-			System.out.printf("[*]File %d --- Name %s --- Size %d Bytes[*]\n", count, i.getName(), i.length());
+		for (var file : deletedFiles) {
+			System.out.printf("[*] File: %d --- Name: %s --- Size: %d Bytes [*]%n",
+					++count, file.getName(), file.length());
 		}
 	}
-	
+
+	/**
+	 * Prints the names of deleted files in the console.
+	 */
 	@Override
 	public void PrintType() {
-		// TODO Auto-generated method stub
-		Iterator<File> it = deletedfiles.iterator();
-		File selectedFile = it.next();
-		while(it.hasNext()) {
-			System.out.println(selectedFile.getName());
-		}
+		deletedFiles.forEach(file -> System.out.println(file.getName()));
 	}
-	
+
+	/**
+	 * Helper method to remove an element from an array.
+	 *
+	 * @param array The array from which to remove the element.
+	 * @param index The index of the element to remove.
+	 * @return A new array with the specified element removed.
+	 */
 	@SuppressWarnings("unused")
 	private File[] removeElement(File[] array, int index) {
-		if (array == null || index < 0|| index >= array.length) {
+		if (array == null || index < 0 || index >= array.length) {
 			return array;
 		}
-		File[] anotherArray = new File[array.length - 1];
-		for (int i = 0, k = 0; i < array.length; i++){
-			if(i == index) {
-				continue;
-			}
-			anotherArray[k++] = array[i];
-		}
-		return anotherArray;
+		return Arrays.stream(array)
+				.filter(file -> !Objects.equals(file, array[index]))
+				.toArray(File[]::new);
 	}
-	
-	class DeleternameFilter implements FilenameFilter{
-		
-		private String DeleterPattern;
-		
-		public DeleternameFilter(String DeleterPattern) {
-			this.DeleterPattern = DeleterPattern;
-		}
+
+	/**
+	 * A {@code FilenameFilter} implementation to match filenames based on a specified pattern.
+	 */
+	record DeleternameFilter(String deleterPattern) implements FilenameFilter {
 
 		@Override
 		public boolean accept(File dir, String name) {
-			// TODO Auto-generated method stub
-			return name.toLowerCase().contains(DeleterPattern) || 
-					name.toLowerCase().endsWith(DeleterPattern)  || 
-					name.toLowerCase().startsWith(DeleterPattern) ||
-					name.toUpperCase().contains(DeleterPattern) ||
-					name.toUpperCase().endsWith(DeleterPattern) ||
-					name.toUpperCase().startsWith(DeleterPattern);
+			String lowerName = name.toLowerCase();
+			return lowerName.contains(deleterPattern) ||
+					lowerName.startsWith(deleterPattern) ||
+					lowerName.endsWith(deleterPattern);
+		}
+
+		@Override
+		public String toString() {
+			return deleterPattern;
 		}
 	}
 }

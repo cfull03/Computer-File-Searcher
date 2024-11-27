@@ -5,88 +5,128 @@ import java.util.*;
 import java.util.regex.*;
 import interfaces.Search;
 
+/**
+ * The {@code Finder} class provides functionality for searching files and directories
+ * within a specified path or a collection of files. Implements the {@link Search} interface.
+ */
 public class Finder implements Search {
-	
-	//Variables
-	private File path;
-	private File[] foundfilesARRAY;
-	
-	//Constructors
+
+	// Variables
+	private final File path;
+	private final File[] foundFilesArray;
+
+	/**
+	 * Constructs a {@code Finder} instance using a collection of files.
+	 *
+	 * @param files A collection of {@link File} objects to initialize the search space.
+	 */
 	public Finder(Collection<File> files) {
-		foundfilesARRAY = new File[files.size()];
-		foundfilesARRAY = files.toArray(foundfilesARRAY);
+		this.foundFilesArray = files.toArray(new File[0]);
+		this.path = null;
 	}
-	
-	public Finder(String finderpath) {
-		this.path = new File(finderpath);
-		foundfilesARRAY = this.path.listFiles();
+
+	/**
+	 * Constructs a {@code Finder} instance using a directory path.
+	 *
+	 * @param finderPath The directory path to initialize the search space.
+	 */
+	public Finder(String finderPath) {
+		this.path = new File(finderPath);
+		this.foundFilesArray = Optional.ofNullable(this.path.listFiles())
+				.orElse(new File[0]);
 	}
-	
-	//Methods
+
+	/**
+	 * Retrieves the array of files found in the search space.
+	 *
+	 * @return An array of {@link File} objects.
+	 */
 	public File[] getFoundFilesARRAY() {
-		return foundfilesARRAY;
+		return foundFilesArray;
 	}
-	
-	
+
+	/**
+	 * Retrieves the list of files found in the search space.
+	 *
+	 * @return A {@link List} of {@link File} objects.
+	 */
 	public List<File> getFoundFilesLIST() {
-		List<File> foundfiles = new ArrayList<File>(Arrays.asList(foundfilesARRAY));
-		return foundfiles;
+		return new ArrayList<>(Arrays.asList(foundFilesArray));
 	}
-	
+
+	/**
+	 * Searches for a single file by name in the provided array of files.
+	 * The search is case-insensitive and uses regular expressions.
+	 *
+	 * @param array      An array of {@link File} objects to search in.
+	 * @param searchName The name or pattern of the file to search for.
+	 * @return A {@link List} containing the matching file(s) or an empty list if none found.
+	 */
 	public List<File> getSingleFile(File[] array, String searchName) {
-		List<File> files = null;
+		List<File> files = new ArrayList<>();
 		Pattern pattern = Pattern.compile(searchName, Pattern.CASE_INSENSITIVE);
-		for(File i : array) {
-			Matcher matcher = pattern.matcher((CharSequence) i.toString());
-			Boolean match = matcher.find();
-			if(match) {
-				files = new ArrayList<File>();
-				files.add((File) i);
-			}else {
-				continue;
+
+		for (var file : array) {
+			Matcher matcher = pattern.matcher(file.toString());
+			if (matcher.find()) {
+				files.add(file);
 			}
 		}
 		return files;
 	}
-	
-	public List<File> newDirectories(List<File> array){
-		List<File> directory = new ArrayList<File>();
-		for(File i : array) {
-			if(i.isDirectory()) {
-				directory.add(i);
-			}else{
-				continue;
+
+	/**
+	 * Filters a list of files to include only directories.
+	 *
+	 * @param array A {@link List} of {@link File} objects.
+	 * @return A {@link List} containing only directories from the input list.
+	 */
+	public List<File> newDirectories(List<File> array) {
+		var directories = new ArrayList<File>();
+		for (var file : array) {
+			if (file.isDirectory()) {
+				directories.add(file);
 			}
 		}
-		return directory;
+		return directories;
 	}
-	
 
+	/**
+	 * Counts the number of files in the provided array.
+	 *
+	 * @param array An array of {@link File} objects.
+	 * @return The count of files in the array.
+	 */
 	@Override
 	public int count(File[] array) {
-		// TODO Auto-generated method stub
 		return array.length;
 	}
 
+	/**
+	 * Counts the number of files in the provided list.
+	 *
+	 * @param array A {@link List} of {@link File} objects.
+	 * @return The count of files in the list.
+	 */
 	@Override
 	public int count(List<File> array) {
-		// TODO Auto-generated method stub
 		return array.size();
 	}
-		
+
+	/**
+	 * Removes a specific element from a file array by index.
+	 *
+	 * @param array The original array of {@link File} objects.
+	 * @param index The index of the element to remove.
+	 * @return A new array with the specified element removed.
+	 */
 	@SuppressWarnings("unused")
 	private File[] removeElement(File[] array, int index) {
-		if (array == null || index < 0|| index >= array.length) {
+		if (array == null || index < 0 || index >= array.length) {
 			return array;
 		}
-		File[] anotherArray = new File[array.length - 1];
-		for (int i = 0, k = 0; i < array.length; i++){
-			if(i == index) {
-				continue;
-			}
-			anotherArray[k++] = array[i];
-		}
-		return anotherArray;
+		return Arrays.stream(array)
+				.filter(file -> !Objects.equals(file, array[index]))
+				.toArray(File[]::new);
 	}
-
 }

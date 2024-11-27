@@ -2,205 +2,188 @@ package tasks;
 
 import java.io.*;
 import java.util.*;
-import java.util.concurrent.*;
-import enumerations.*;
-import interfaces.*;
+import java.util.concurrent.Callable;
 
+import enumerations.OSPath;
+import interfaces.Clean;
 
 public class FileEditor implements Clean, Callable<Integer> {
-	
-	//Variables
-	private File[] files;
-	private File[] filespath;
-	private File filepath;
-	private String pattern;
-	private String path;
-	private String pathname;
-	private FindernameFilter stringpattern;
+
+	// Variables
+	private final File[] files;
+	private final File filepath;
+	private final String pattern;
+	private final String pathname;
+	private final FindernameFilter stringpattern;
 	private HashSet<File> finalfiles;
-	
-	//Constructors
-	public FileEditor(HashSet<File> fileArray, String pattern, Path path) {
-		this.path = path.toPath();
+
+	// Constructors
+	/**
+	 * Creates a FileEditor with a set of initial files and a pattern to filter.
+	 * @param fileArray The initial set of files.
+	 * @param pattern The pattern to search for.
+	 * @param path The OSPath enum representing the root directory.
+	 */
+	public FileEditor(HashSet<File> fileArray, String pattern, OSPath path) {
+		this.pathname = path.toPath();
 		this.pattern = pattern;
-		this.pathname = path.toString();
-		this.files = new File[fileArray.size()];
-		this.files = fileArray.toArray(files);
+		this.files = fileArray.toArray(new File[0]);
 		this.stringpattern = new FindernameFilter(pattern);
-		this.filepath = new File(this.path);
-		
+		this.filepath = new File(path.toPath());
 	}
-	
-	public FileEditor(String pattern, Path path) {
-		this.path = path.toPath();
-		this.pathname = path.toString();
-		this.stringpattern = new FindernameFilter(pattern);
+
+	/**
+	 * Creates a FileEditor with no initial files and a pattern to filter.
+	 * @param pattern The pattern to search for.
+	 * @param path The OSPath enum representing the root directory.
+	 */
+	public FileEditor(String pattern, OSPath path) {
+		this.pathname = path.toPath();
 		this.pattern = pattern;
 		this.files = null;
-		
+		this.stringpattern = new FindernameFilter(pattern);
+		this.filepath = new File(path.toPath());
 	}
-	
-	//Methods
+
+	// Methods
+	/**
+	 * Gets the files in the specified directory that match the pattern.
+	 * @return An array of matching files, or an empty array if none found.
+	 */
 	public File[] getFoundFiles() {
-		File filepath = new File(path);
-		File[] pathfiles = filepath.listFiles(stringpattern);
-		return pathfiles;
+		return Optional.ofNullable(filepath.listFiles(stringpattern))
+				.orElse(new File[0]);
 	}
-	
-	public HashSet<File> getFinalFiles(){
-		return this.finalfiles;
+
+	/**
+	 * Retrieves the final set of files after filtering and searching.
+	 * @return A HashSet of matching files.
+	 */
+	public HashSet<File> getFinalFiles() {
+		return finalfiles;
 	}
-	
+
+	/**
+	 * Retrieves the pathname of the current directory.
+	 * @return The pathname as a String.
+	 */
 	public String getPathname() {
-		return this.pathname;
+		return pathname;
 	}
-	
+
 	@Override
 	public Integer call() throws Exception {
-		// TODO Auto-generated method stub
 		Edit();
-		FolderSearch(filepath,pattern);
-		
+		FolderSearch(filepath, pattern);
 		return finalfiles.size();
 	}
-	
-	
+
 	@Override
-	public void Edit(){
-		File filepath = new File(path);
-		this.filespath = filepath.listFiles(stringpattern);
-		this.finalfiles = new HashSet<File>(Arrays.asList(filespath));
+	public void Edit() {
+		this.finalfiles = new HashSet<>(Arrays.asList(getFoundFiles()));
 	}
 
 	@Override
 	public void PrintType() {
-		// TODO Auto-generated method stub
-		Iterator<File> it = finalfiles.iterator();
-		while(it.hasNext()) {
-			it.next();
-			System.out.println(it.next().getName());
+		if (finalfiles == null || finalfiles.isEmpty()) {
+			System.out.println("No files found.");
+			return;
 		}
+		finalfiles.forEach(file -> System.out.println(file.getName()));
 	}
-	
+
 	@Override
 	public void DisplayName() {
-		System.out.println("\n====================================================================\n");
-		System.out.printf("Files in the diractory (NAME): %s\n\n",pathname);
-		int count = 0;
-		if(finalfiles.size() == 0) {
-			System.out.println("NULL\n");
-		}
-		for(File i : finalfiles) {
-			count++;
-			System.out.printf("[*] File: %d --- Name: %s [*]\n",count,i.getName());
-		}
-		System.out.println("\n====================================================================\n");
+		displayFiles("NAME", File::getName);
 	}
-	
+
 	@Override
 	public void DisplayPath() {
-		System.out.println("\n====================================================================\n");
-		System.out.printf("Files in the diractory (PATH): %s\n\n",pathname);
-		int count = 0;
-		if(finalfiles.size() == 0) {
-			System.out.println("NULL\n");
-		}
-		for(File i : finalfiles) {
-			count++;
-			System.out.printf("[*] File: %d --- Name: %s[*]\n[*]Path: %s [*]\n\n",count,i.getName(),i.getPath());
-		}
-		System.out.println("====================================================================\n");
+		displayFiles("PATH", file -> String.format("%s\n[*]Path: %s", file.getName(), file.getPath()));
 	}
-	
+
 	@Override
 	public void DisplayFileSize() {
-		System.out.println("\n====================================================================\n");
-		System.out.printf("Files in the diractory (FILESIZE): %s\n\n",pathname);
-		int count = 0;
-		if(finalfiles.size() == 0) {
-			System.out.println("NULL\n");
-		}
-		for(File i : finalfiles) {
-			count++;
-			System.out.printf("[*] File: %d --- Name: %s --- Size: %d Bytes [*]\n", count, i.getName(), i.length());
-		}
-		System.out.println("\n====================================================================\n");
+		displayFiles("FILESIZE", file -> String.format("%s --- Size: %d Bytes", file.getName(), file.length()));
 	}
-	
+
 	public void Print(Collection<File> files) {
 		Clean.Print(files);
 	}
-	
+
 	public void Print(File[] files) {
 		Clean.Print(files);
 	}
-	
 
 	private void FolderSearch(File path, String pattern) {
-		File[] foundfiles = path.listFiles();
-		
-		if(foundfiles != null) {
-			for(File i : foundfiles) {
-				if(i.isDirectory()) {
-					FolderSearch(i,pattern);
-				}else if(i.getName().contains(pattern)) {
-					finalfiles.add(i);
-				}
+		var foundFiles = Optional.ofNullable(path.listFiles()).orElse(new File[0]);
+		Arrays.stream(foundFiles).forEach(file -> {
+			if (file.isDirectory()) {
+				FolderSearch(file, pattern);
+			} else if (file.getName().contains(pattern)) {
+				finalfiles.add(file);
 			}
-		}
+		});
 	}
 
 	@SuppressWarnings("unused")
 	private File[] removeElement(File[] array, int index) {
-		if (array == null || index < 0|| index >= array.length) {
+		if (array == null || index < 0 || index >= array.length) {
 			return array;
 		}
-		File[] anotherArray = new File[array.length - 1];
-		for (int i = 0, k = 0; i < array.length; i++){
-			if(i == index) {
-				continue;
-			}
-			anotherArray[k++] = array[i];
-		}
-		return anotherArray;
+		return Arrays.stream(array)
+				.filter(file -> !Objects.equals(file, array[index]))
+				.toArray(File[]::new);
 	}
-	
+
 	@SuppressWarnings("unused")
 	private void delay() {
 		try {
 			Thread.sleep(3000);
 		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
 			Thread.currentThread().interrupt();
 		}
 	}
-	
-	class FindernameFilter implements FilenameFilter{
-		
-		private String FinderPattern;
-		
-		public FindernameFilter(String FinderPattern) {
-			this.FinderPattern = FinderPattern;
+
+	private void displayFiles(String displayType, DisplayFormatter formatter) {
+		System.out.printf("\n====================================================================\n");
+		System.out.printf("Files in the directory (%s): %s\n\n", displayType, pathname);
+		if (finalfiles == null || finalfiles.isEmpty()) {
+			System.out.println("NULL\n");
+			return;
 		}
-		
-		public String getFinderPattern() {
-			return this.FinderPattern;
+		int count = 0;
+		for (var file : finalfiles) {
+			System.out.printf("[*] File: %d --- %s [*]\n", ++count, formatter.format(file));
 		}
-		
-		@Override
-		public String toString() {
-			return this.FinderPattern;
-		}
+		System.out.println("====================================================================\n");
+	}
+
+	@FunctionalInterface
+	private interface DisplayFormatter {
+		String format(File file);
+	}
+
+	/**
+	 * FindernameFilter record to filter files by pattern.
+	 */
+	record FindernameFilter(String finderPattern) implements FilenameFilter {
 
 		@Override
 		public boolean accept(File dir, String name) {
-			// TODO Auto-generated method stub
-			return name.toLowerCase().contains(FinderPattern) || 
-					name.toLowerCase().endsWith(FinderPattern)  || 
-					name.toLowerCase().startsWith(FinderPattern) ||
-					name.toUpperCase().contains(FinderPattern) ||
-					name.toUpperCase().endsWith(FinderPattern) ||
-					name.toUpperCase().startsWith(FinderPattern);
+			var lowerName = name.toLowerCase();
+			var upperName = name.toUpperCase();
+			return lowerName.contains(finderPattern) ||
+					lowerName.endsWith(finderPattern) ||
+					lowerName.startsWith(finderPattern) ||
+					upperName.contains(finderPattern) ||
+					upperName.endsWith(finderPattern) ||
+					upperName.startsWith(finderPattern);
+		}
+
+		@Override
+		public String toString() {
+			return finderPattern;
 		}
 	}
 }
