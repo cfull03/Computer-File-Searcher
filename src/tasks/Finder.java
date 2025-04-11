@@ -1,8 +1,15 @@
 package tasks;
 
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.*;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.regex.*;
+import java.util.stream.Collectors;
 import interfaces.Search;
 
 /**
@@ -11,9 +18,10 @@ import interfaces.Search;
  */
 public class Finder implements Search {
 
-	// Variables
+	private static final Logger LOGGER = Logger.getLogger(Finder.class.getName());
+
 	private final File path;
-	private final File[] foundFilesArray;
+	private final List<File> foundFilesList;
 
 	/**
 	 * Constructs a {@code Finder} instance using a collection of files.
@@ -21,7 +29,7 @@ public class Finder implements Search {
 	 * @param files A collection of {@link File} objects to initialize the search space.
 	 */
 	public Finder(Collection<File> files) {
-		this.foundFilesArray = files.toArray(new File[0]);
+		this.foundFilesList = new ArrayList<>(files);
 		this.path = null;
 	}
 
@@ -32,8 +40,17 @@ public class Finder implements Search {
 	 */
 	public Finder(String finderPath) {
 		this.path = new File(finderPath);
-		this.foundFilesArray = Optional.ofNullable(this.path.listFiles())
-				.orElse(new File[0]);
+		List<File> result;
+		try {
+			result = Files.walk(Paths.get(finderPath))
+				.filter(Files::isRegularFile)
+				.map(Path::toFile)
+				.collect(Collectors.toList());
+		} catch (IOException e) {
+			LOGGER.log(Level.SEVERE, "Failed to read files from path: " + finderPath, e);
+			result = Collections.emptyList();
+		}
+		this.foundFilesList = result;
 	}
 
 	/**
@@ -41,8 +58,8 @@ public class Finder implements Search {
 	 *
 	 * @return An array of {@link File} objects.
 	 */
-	public File[] getFoundFilesARRAY() {
-		return foundFilesArray;
+	public File[] getFoundFilesArray() {
+		return foundFilesList.toArray(new File[0]);
 	}
 
 	/**
@@ -50,45 +67,35 @@ public class Finder implements Search {
 	 *
 	 * @return A {@link List} of {@link File} objects.
 	 */
-	public List<File> getFoundFilesLIST() {
-		return new ArrayList<>(Arrays.asList(foundFilesArray));
+	public List<File> getFoundFilesList() {
+		return foundFilesList;
 	}
 
 	/**
-	 * Searches for a single file by name in the provided array of files.
+	 * Searches for a single file by name in the provided list of files.
 	 * The search is case-insensitive and uses regular expressions.
 	 *
-	 * @param array      An array of {@link File} objects to search in.
+	 * @param files      A list of {@link File} objects to search in.
 	 * @param searchName The name or pattern of the file to search for.
 	 * @return A {@link List} containing the matching file(s) or an empty list if none found.
 	 */
-	public List<File> getSingleFile(File[] array, String searchName) {
-		List<File> files = new ArrayList<>();
+	public List<File> getSingleFile(List<File> files, String searchName) {
 		Pattern pattern = Pattern.compile(searchName, Pattern.CASE_INSENSITIVE);
-
-		for (var file : array) {
-			Matcher matcher = pattern.matcher(file.toString());
-			if (matcher.find()) {
-				files.add(file);
-			}
-		}
-		return files;
+		return files.stream()
+			.filter(file -> pattern.matcher(file.toString()).find())
+			.collect(Collectors.toList());
 	}
 
 	/**
 	 * Filters a list of files to include only directories.
 	 *
-	 * @param array A {@link List} of {@link File} objects.
+	 * @param files A {@link List} of {@link File} objects.
 	 * @return A {@link List} containing only directories from the input list.
 	 */
-	public List<File> newDirectories(List<File> array) {
-		var directories = new ArrayList<File>();
-		for (var file : array) {
-			if (file.isDirectory()) {
-				directories.add(file);
-			}
-		}
-		return directories;
+	public List<File> filterDirectories(List<File> files) {
+		return files.stream()
+			.filter(File::isDirectory)
+			.collect(Collectors.toList());
 	}
 
 	/**
@@ -105,28 +112,11 @@ public class Finder implements Search {
 	/**
 	 * Counts the number of files in the provided list.
 	 *
-	 * @param array A {@link List} of {@link File} objects.
+	 * @param list A {@link List} of {@link File} objects.
 	 * @return The count of files in the list.
 	 */
 	@Override
-	public int count(List<File> array) {
-		return array.size();
-	}
-
-	/**
-	 * Removes a specific element from a file array by index.
-	 *
-	 * @param array The original array of {@link File} objects.
-	 * @param index The index of the element to remove.
-	 * @return A new array with the specified element removed.
-	 */
-	@SuppressWarnings("unused")
-	private File[] removeElement(File[] array, int index) {
-		if (array == null || index < 0 || index >= array.length) {
-			return array;
-		}
-		return Arrays.stream(array)
-				.filter(file -> !Objects.equals(file, array[index]))
-				.toArray(File[]::new);
+	public int count(List<File> list) {
+		return list.size();
 	}
 }
