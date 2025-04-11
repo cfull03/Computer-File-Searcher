@@ -2,99 +2,77 @@ package GUIs;
 
 import java.awt.*;
 import java.io.*;
+import java.nio.file.*;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.logging.*;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import javax.swing.*;
 
 import enumerations.OSPath;
 import factory.*;
 import interfaces.*;
 import tasks.*;
+import finder.Finder;
+import editor.FileEditor;
 
 /**
- * A GUI application for displaying files matching a specific pattern in a selected directory.
- * This class uses {@link FileEditor} for file filtering and {@link JTable} to display the results.
+ * A Swing-based GUI that displays files matching a given pattern in a specific OS path.
+ * Users can interactively delete files or initiate a batch deletion using a pattern.
  */
 public class FileDisplayer extends JFrame {
 
 	private static final long serialVersionUID = 1L;
-
-	/**
-	 * Logger instance for logging information and errors.
-	 */
 	private static final Logger LOGGER = Logger.getLogger(FileDisplayer.class.getName());
 
-	// Variables
-	private final FileEditor desktopEdit;
-	private final FileEditor cfEdit;
-	private final FileEditor uEdit;
 	private final LinkedList<Object[]> fileTable = new LinkedList<>();
 	private JTable table;
 	private final Future<Integer> assignment;
+	private final JCheckBox useBatchDeleter = new JCheckBox("Use Batch Pattern Deleter");
 
-	// Final Variables
 	private static final WorkingThreadFactory NFactory = new NormalFactory("Search Factory");
 	private static final ExecutorService processor = Executors.newCachedThreadPool(NFactory);
-	private static final HashSet<File> DesktopFiles = initializeFiles(OSPath.DESKTOP.toPath());
-	private static final HashSet<File> CFFiles = initializeFiles(OSPath.CF.toPath());
-	private static final HashSet<File> USERSFiles = initializeFiles(OSPath.USERS.toPath());
-	private static final String[] TITLES = {"Name", "Size", "Path"};
+	private static final String[] TITLES = { "Name", "Size", "Path" };
 
 	/**
-	 * Constructs a new {@code FileDisplayer} instance, initializing the GUI and filtering files
-	 * based on the provided directory and search pattern.
+	 * Constructs the FileDisplayer GUI and begins file scanning using FileEditor.
 	 *
-	 * @param selection The {@link OSPath} representing the directory to search.
-	 * @param pattern   The keyword pattern to filter files.
+	 * @param selection The OSPath enum indicating which base directory to search.
+	 * @param pattern   The file name pattern to search for.
 	 */
 	public FileDisplayer(OSPath selection, String pattern) {
 		long startTime = System.currentTimeMillis();
 		LOGGER.info(() -> String.format("Displaying files in [%s] containing the keyword [%s]", selection, pattern));
 
-		// Initialize FileEditors
-		uEdit = new FileEditor(USERSFiles, pattern, OSPath.USERS);
-		cfEdit = new FileEditor(CFFiles, pattern, OSPath.CF);
-		desktopEdit = new FileEditor(DesktopFiles, pattern, OSPath.DESKTOP);
+		HashSet<File> initialFiles = initializeFiles(selection.toPath());
+		FileEditor editor = new FileEditor(initialFiles, pattern, selection);
 
-		// Process the selected path and filter files
-		switch (selection) {
-			case CF -> assignment = processSelection(cfEdit);
-			case DESKTOP -> assignment = processSelection(desktopEdit);
-			case USERS -> assignment = processSelection(uEdit);
-			default -> throw new IllegalArgumentException("Invalid selection: " + selection);
-		}
-
-		// Ensure thread pool shutdown
+		assignment = processSelection(editor);
 		shutdownAndAwait(processor);
 
-		// Log shutdown state
-		LOGGER.info(() -> processor.isShutdown() && processor.isTerminated() ?
-				"Thread pool successfully shut down." :
-				"Thread pool failed to shut down properly.");
+		LOGGER.info(() -> processor.isShutdown() && processor.isTerminated()
+				? "Thread pool successfully shut down."
+				: "Thread pool failed to shut down properly.");
 
-		// Initialize and display GUI
 		initializeGUI(selection, pattern, startTime);
 	}
 
 	/**
-	 * Processes the files in the selected directory using a {@link FileEditor}.
+	 * Submits a file scanning task and collects results into the fileTable.
 	 *
-	 * @param editor The {@link FileEditor} to process the files.
-	 * @return A {@link Future} representing the result of the file processing task.
+	 * @param editor A FileEditor instance that performs the file scan.
+	 * @return Future representing the task.
 	 */
 	private Future<Integer> processSelection(FileEditor editor) {
 		try {
 			var start = System.currentTimeMillis();
 			var future = processor.submit(editor);
-
 			var result = future.get(3500, TimeUnit.MILLISECONDS);
-			LOGGER.info(() -> String.format("Processed %s in %d milliseconds, found %d files.",
-					editor.getPathname(), System.currentTimeMillis() - start, result));
-
+			LOGGER.info(() -> String.format("Processed %s in %d ms, found %d files.", editor.getPathname(),
+					System.currentTimeMillis() - start, result));
 			editor.getFinalFiles().forEach(this::addData);
 			return future;
-
 		} catch (TimeoutException | InterruptedException | ExecutionException e) {
 			LOGGER.log(Level.SEVERE, "Error processing files.", e);
 			throw new RuntimeException(e);
@@ -102,11 +80,11 @@ public class FileDisplayer extends JFrame {
 	}
 
 	/**
-	 * Initializes the GUI components and displays the results.
+	 * Builds and shows the GUI window, including the file table and delete controls.
 	 *
-	 * @param selection  The selected directory to display.
-	 * @param pattern    The search pattern used to filter files.
-	 * @param startTime  The start time of the GUI initialization for logging purposes.
+	 * @param selection The OSPath enum used to show which directory was scanned.
+	 * @param pattern   The pattern used for scanning.
+	 * @param startTime The system timestamp when scanning started.
 	 */
 	private void initializeGUI(OSPath selection, String pattern, long startTime) {
 		setTitle(String.format("Found Files in %s", selection));
@@ -118,83 +96,104 @@ public class FileDisplayer extends JFrame {
 		table = new JTable(rows, TITLES);
 		add(new JScrollPane(table), BorderLayout.CENTER);
 
-		setVisible(true);
+		JPanel bottomPanel = new JPanel(new BorderLayout());
+		bottomPanel.add(useBatchDeleter, BorderLayout.NORTH);
 
+		JButton deleteButton = new JButton("Delete Selected");
+		deleteButton.addActionListener(e -> deleteSelectedFiles());
+		bottomPanel.add(deleteButton, BorderLayout.SOUTH);
+		add(bottomPanel, BorderLayout.SOUTH);
+
+		setVisible(true);
 		LOGGER.info(() -> String.format("Total time to find files: %d milliseconds.",
 				System.currentTimeMillis() - startTime));
 	}
 
 	/**
-	 * Converts the file data from a list into a two-dimensional array for displaying in a {@link JTable}.
+	 * Converts a list of file metadata arrays into a 2D array suitable for JTable.
 	 *
-	 * @param data The linked list containing file data as object arrays.
-	 * @return A 2D array representing the file data.
+	 * @param data The file metadata list.
+	 * @return A 2D Object array representing table rows.
 	 */
 	private Object[][] to2DArray(LinkedList<Object[]> data) {
 		return data.toArray(new Object[0][0]);
 	}
 
 	/**
-	 * Adds file data to the table.
+	 * Adds a file's metadata to the table.
 	 *
-	 * @param file The file whose data should be added.
+	 * @param file The file to include.
 	 */
 	private void addData(File file) {
 		var size = String.format("%d BYTES", file.length());
-		var data = new Object[]{file.getName(), size, file.getAbsolutePath()};
+		var data = new Object[] { file.getName(), size, file.getAbsolutePath() };
 		fileTable.add(data);
 	}
 
 	/**
-	 * Initializes the files in the given directory path.
+	 * Deletes files selected in the table. Can optionally trigger batch deletion with Deleter.
+	 */
+	private void deleteSelectedFiles() {
+		int[] selectedRows = table.getSelectedRows();
+		if (selectedRows.length == 0) {
+			JOptionPane.showMessageDialog(this, "No files selected for deletion.");
+			return;
+		}
+
+		if (useBatchDeleter.isSelected()) {
+			String pattern = JOptionPane.showInputDialog(this, "Enter pattern to match for batch deletion:");
+			if (pattern != null && !pattern.trim().isEmpty()) {
+				ExecutorService exec = Executors.newSingleThreadExecutor();
+				exec.submit(new Deleter(pattern, OSPath.USERS, exec));
+				JOptionPane.showMessageDialog(this, "Batch deletion initiated using pattern: " + pattern);
+			} else {
+				JOptionPane.showMessageDialog(this, "No valid pattern provided.");
+			}
+			return;
+		}
+
+		List<Integer> rowsToRemove = new ArrayList<>();
+		for (int row : selectedRows) {
+			String path = (String) table.getValueAt(row, 2);
+			try {
+				Files.deleteIfExists(Path.of(path));
+				LOGGER.info("Deleted file: " + path);
+				rowsToRemove.add(row);
+			} catch (IOException ex) {
+				LOGGER.log(Level.WARNING, "Failed to delete: " + path, ex);
+			}
+		}
+
+		rowsToRemove.stream().sorted(Comparator.reverseOrder()).forEach(index -> {
+			fileTable.remove(index);
+		});
+		table.setModel(new javax.swing.table.DefaultTableModel(to2DArray(fileTable), TITLES));
+		JOptionPane.showMessageDialog(this, "Selected files deleted.");
+	}
+
+	/**
+	 * Scans a directory recursively to get all regular files.
 	 *
-	 * @param path The directory path as a string.
-	 * @return A {@link HashSet} containing all files in the directory and subdirectories.
+	 * @param path A string path to the root directory.
+	 * @return A set of discovered files.
 	 */
 	private static HashSet<File> initializeFiles(String path) {
-		var finder = new Finder(path);
-		return initialSearch(finder.getFoundFilesARRAY());
-	}
-
-	/**
-	 * Performs an initial search for files in the given file array, including subdirectories.
-	 *
-	 * @param files The array of files to search.
-	 * @return A {@link HashSet} containing all valid files found.
-	 */
-	private static HashSet<File> initialSearch(File[] files) {
-		var finalFiles = new HashSet<File>();
-		for (var file : files) {
-			if (file.isFile()) {
-				finalFiles.add(file);
-			} else if (file.isDirectory()) {
-				folderSearch(file, finalFiles);
+		try {
+			Path basePath = Paths.get(path);
+			try (Stream<Path> stream = Files.walk(basePath)) {
+				return stream.filter(Files::isRegularFile).map(Path::toFile)
+						.collect(Collectors.toCollection(HashSet::new));
 			}
-		}
-		return finalFiles;
-	}
-
-	/**
-	 * Recursively searches a folder and adds files to the provided collection.
-	 *
-	 * @param folder The folder to search.
-	 * @param list   The collection to store found files.
-	 */
-	private static void folderSearch(File folder, Collection<File> list) {
-		var files = Optional.ofNullable(folder.listFiles()).orElse(new File[0]);
-		for (var file : files) {
-			if (file.isFile()) {
-				list.add(file);
-			} else if (file.isDirectory()) {
-				folderSearch(file, list);
-			}
+		} catch (IOException e) {
+			LOGGER.log(Level.WARNING, "Failed to load initial files from: " + path, e);
+			return new HashSet<>();
 		}
 	}
 
 	/**
-	 * Shuts down the executor service gracefully, ensuring all tasks are completed or terminated.
+	 * Gracefully shuts down the given ExecutorService.
 	 *
-	 * @param pool The {@link ExecutorService} to shut down.
+	 * @param pool The executor to shutdown.
 	 */
 	private void shutdownAndAwait(ExecutorService pool) {
 		pool.shutdown();
