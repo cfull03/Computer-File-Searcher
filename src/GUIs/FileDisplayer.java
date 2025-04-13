@@ -9,13 +9,12 @@ import java.util.logging.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.swing.*;
+import java.util.List;
 
 import enumerations.OSPath;
 import factory.*;
 import interfaces.*;
 import tasks.*;
-import finder.Finder;
-import editor.FileEditor;
 
 /**
  * A Swing-based GUI that displays files matching a given pattern in a specific OS path.
