@@ -4,5 +4,4 @@ enum Assignments {
 	Delete,
 	Edit,
 	List,
-	
 }
