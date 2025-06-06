@@ -1,25 +1,23 @@
 package enumerations;
 
+import java.nio.file.Paths;
+
 public enum OSPath {
 
-	// Enum values with associated paths
-	USERS("/Users", "Users"),
-	CF("/Users/christianfullerton", "CF"),
-	DESKTOP("/Users/christianfullerton/Desktop", "Desktop");
+	USERS("", "Users"),
+	CF("", "Home"),
+	DESKTOP("Desktop", "Desktop");
 
-	// Fields
-	private final String path;
+	private final String relativePath;
 	private final String displayName;
 
-	// Constructor
-	OSPath(String path, String displayName) {
-		this.path = path;
+	OSPath(String relativePath, String displayName) {
+		this.relativePath = relativePath;
 		this.displayName = displayName;
 	}
 
-	// Methods
 	public String toPath() {
-		return path;
+		return Paths.get(System.getProperty("user.home"), relativePath).toString();
 	}
 
 	@Override
