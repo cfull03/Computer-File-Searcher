@@ -31,7 +31,9 @@ public class FileDisplayer extends JFrame {
 	private final JCheckBox useBatchDeleter = new JCheckBox("Use Batch Pattern Deleter");
 
 	private static final WorkingThreadFactory NFactory = new NormalFactory("Search Factory");
-	private static final ExecutorService processor = Executors.newCachedThreadPool(NFactory);
+	private static final ExecutorService processor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors(), 
+										      new NormalFactory("Search Factory"));
+
 	private static final String[] TITLES = { "Name", "Size", "Path" };
 
 	/**
